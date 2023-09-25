@@ -85,7 +85,7 @@ class PDCA(nn.Module):
 
     def func_E(self, f, R, policy, states, actions, next_states, dones):
         next_actions, *_ = policy.forward(next_states)
-        X = f(states, actions)[0] - R - self.gamma * f(next_states, next_actions)[0] * dones
+        X = f(states, actions)[0] - R - self.gamma * f(next_states, next_actions)[0]
         sum_positive = torch.mean(torch.clamp(X, min=0))
         sum_negative = torch.mean(torch.clamp(X, max=0))
         return torch.max(sum_positive, -sum_negative)
