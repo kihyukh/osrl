@@ -40,9 +40,9 @@ def get_f_div_fn(f_type: str):
 
 class COptiDICE(nn.Module):
     """
-    Offline Constrained Policy Optimization 
+    Offline Constrained Policy Optimization
     via stationary DIstribution Correction Estimation (COptiDICE)
-    
+
     Args:
         state_dim (int): dimension of the state space.
         action_dim (int): dimension of the action space.
@@ -51,9 +51,9 @@ class COptiDICE(nn.Module):
         init_state_propotion (float): The proportion of initial states to include in the optimization.
         observations_std (np.ndarray): The standard deviation of the observation space.
         actions_std (np.ndarray): The standard deviation of the action space.
-        a_hidden_sizes (list): List of integers specifying the sizes 
+        a_hidden_sizes (list): List of integers specifying the sizes
                                of the layers in the actor network.
-        c_hidden_sizes (list): List of integers specifying the sizes 
+        c_hidden_sizes (list): List of integers specifying the sizes
                                of the layers in the critic network (nu and chi networks).
         gamma (float): Discount factor for the reward.
         alpha (float): The coefficient for the cost term in the loss function.
@@ -62,7 +62,7 @@ class COptiDICE(nn.Module):
         num_chi (int): The number of critics to use for the chi-network.
         cost_limit (int): Upper limit on the cost per episode.
         episode_len (int): Maximum length of an episode.
-        device (str): Device to run the model on (e.g. 'cpu' or 'cuda:0'). 
+        device (str): Device to run the model on (e.g. 'cpu' or 'cuda:0').
     """
 
     def __init__(self,
@@ -251,7 +251,7 @@ class COptiDICE(nn.Module):
 class COptiDICETrainer:
     """
     COptiDICE trainer
-    
+
     Args:
         model (COptiDICE): The COptiDICE model to train.
         env (gym.Env): The OpenAI Gym environment to train the model in.

@@ -144,6 +144,7 @@ def train(args: PDCATrainConfig):
         batch = next(trainloader_iter)
         batch = [b.to(args.device) for b in batch]
         init_batch = next(initial_state_loader_iter)
+        init_batch = [b.to(args.device) for b in init_batch]
         trainer.train_one_step(batch, init_batch)
 
         # evaluation

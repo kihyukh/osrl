@@ -45,6 +45,7 @@ class PDCA(nn.Module):
                  gamma: float = 0.99,
                  B: float = 5,
                  cost_threshold: float = 10,
+                 episode_len: int = 300,
                  device: str = "cpu"):
         super().__init__()
         self.state_dim = state_dim
@@ -55,6 +56,7 @@ class PDCA(nn.Module):
         self.gamma = gamma
         self.B = B
         self.cost_threshold = cost_threshold
+        self.episode_len = episode_len
         self.device = device
 
         # actor
@@ -188,10 +190,14 @@ class PDCATrainer:
                  logger: WandbLogger = DummyLogger(),
                  actor_lr: float = 1e-3,
                  critic_lr: float = 1e-3,
+                 reward_scale: float = 1.0,
+                 cost_scale: float = 1.0,
                  device="cpu"):
         self.model = model
         self.logger = logger
         self.env = env
+        self.reward_scale = reward_scale
+        self.cost_scale = cost_scale
         self.device = device
         self.model.setup_optimizers(actor_lr, critic_lr)
 
