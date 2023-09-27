@@ -65,7 +65,7 @@ class MLPGaussianPerturbationActor(nn.Module):
 class MLPActor(nn.Module):
     """
     A MLP actor
-    
+
     Args:
         obs_dim (int): The dimension of the observation space.
         act_dim (int): The dimension of the action space.
@@ -88,7 +88,7 @@ class MLPActor(nn.Module):
 class MLPGaussianActor(nn.Module):
     """
     A MLP Gaussian actor
-    
+
     Args:
         obs_dim (int): The dimension of the observation space.
         act_dim (int): The dimension of the action space.
@@ -152,7 +152,7 @@ LOG_STD_MIN = -20
 class SquashedGaussianMLPActor(nn.Module):
     '''
     A MLP Gaussian actor, can also be used as a deterministic actor
-    
+
     Args:
         obs_dim (int): The dimension of the observation space.
         act_dim (int): The dimension of the action space.
@@ -208,7 +208,7 @@ class SquashedGaussianMLPActor(nn.Module):
 class EnsembleQCritic(nn.Module):
     '''
     An ensemble of Q network to address the overestimation issue.
-    
+
     Args:
         obs_dim (int): The dimension of the observation space.
         act_dim (int): The dimension of the action space.
@@ -242,10 +242,39 @@ class EnsembleQCritic(nn.Module):
         return sum(losses)
 
 
+class MLPQCritic(nn.Module):
+    '''
+    A MLP Q network.
+
+    Args:
+        obs_dim (int): The dimension of the observation space.
+        act_dim (int): The dimension of the action space.
+        hidden_sizes (List[int]): The sizes of the hidden layers in the neural network.
+        activation (Type[nn.Module]): The activation function to use between layers.
+    '''
+
+    def __init__(self, obs_dim, act_dim, hidden_sizes, activation):
+        super().__init__()
+        self.q_net = mlp([obs_dim + act_dim] + list(hidden_sizes) + [1], nn.ReLU)
+
+    def forward(self, obs, act=None):
+        # Squeeze is critical to ensure value has the right shape.
+        # Without squeeze, the training stability will be greatly affected!
+        # For instance, shape [3] - shape[3,1] = shape [3, 3] instead of shape [3]
+        data = obs if act is None else torch.cat([obs, act], dim=-1)
+        return torch.squeeze(self.q_net(data), -1)
+
+    def predict(self, obs, act):
+        return self.forward(obs, act).values
+
+    def loss(self, target, q_list=None):
+        return ((q - target)**2).mean()
+
+
 class EnsembleDoubleQCritic(nn.Module):
     '''
     An ensemble of double Q network to address the overestimation issue.
-    
+
     Args:
         obs_dim (int): The dimension of the observation space.
         act_dim (int): The dimension of the action space.
@@ -290,7 +319,7 @@ class EnsembleDoubleQCritic(nn.Module):
 class VAE(nn.Module):
     """
     Variational Auto-Encoder
-    
+
     Args:
         obs_dim (int): The dimension of the observation space.
         act_dim (int): The dimension of the action space.
@@ -356,7 +385,7 @@ class VAE(nn.Module):
 class LagrangianPIDController:
     '''
     Lagrangian multiplier controller
-    
+
     Args:
         KP (float): The proportional gain.
         KI (float): The integral gain.

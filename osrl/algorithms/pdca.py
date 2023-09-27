@@ -8,7 +8,7 @@ from torch.distributions.beta import Beta
 from torch.nn import functional as F  # noqa
 from tqdm.auto import trange  # noqa
 
-from osrl.common.net import EnsembleQCritic, SquashedGaussianMLPActor
+from osrl.common.net import MLPQCritic, SquashedGaussianMLPActor
 
 
 class PDCA(nn.Module):
@@ -69,36 +69,34 @@ class PDCA(nn.Module):
                 nn.ReLU).to(self.device)
 
         # critics
-        self.reward_network = EnsembleQCritic(
+        self.reward_network = MLPQCritic(
                 self.state_dim,
                 self.action_dim,
                 self.c_hidden_sizes,
-                nn.ReLU,
-                num_q=1).to(self.device)
-        self.cost_network = EnsembleQCritic(
+                nn.ReLU).to(self.device)
+        self.cost_network = MLPQCritic(
                 self.state_dim,
                 self.action_dim,
                 self.c_hidden_sizes,
-                nn.ReLU,
-                num_q=1).to(self.device)
+                nn.ReLU).to(self.device)
 
         # lambda
         self.lambdas = 0
 
     def func_E(self, f, R, policy, states, actions, next_states, dones):
         next_actions, *_ = policy.forward(next_states)
-        X = f(states, actions)[0] - R - self.gamma * f(next_states, next_actions)[0] * (1 - dones)
+        X = f(states, actions) - R - self.gamma * f(next_states, next_actions)
         sum_positive = torch.mean(torch.clamp(X, min=0))
         sum_negative = torch.mean(torch.clamp(X, max=0))
         return torch.max(sum_positive, -sum_negative)
 
     def func_A(self, f, policy, states, actions):
         policy_actions, *_ = policy.forward(states)
-        return f(states, policy_actions)[0] - f(states, actions)[0]
+        return f(states, policy_actions) - f(states, actions)
 
     def combined_reward(self, states, actions):
-        return self.reward_network(states, actions)[0] + (
-            self.cost_threshold - self.cost_network(states, actions)[0]
+        return self.reward_network(states, actions) + (
+            self.cost_threshold - self.cost_network(states, actions)
         ) * self.lambdas
 
     def update(self, batch):
@@ -110,8 +108,7 @@ class PDCA(nn.Module):
             2 * self.C * self.func_E(self.reward_network, rewards, self.actor, states, actions, next_states, dones) +
             self.func_A(self.reward_network, self.actor, states, actions)
         )
-        loss_reward.sum().backward()
-        nn.utils.clip_grad_norm_(self.reward_network.parameters(), max_norm=1.0)
+        loss_reward.mean().backward()
         self.reward_optimizer.step()
 
         # cost critic
@@ -120,15 +117,13 @@ class PDCA(nn.Module):
             2 * self.C * self.func_E(self.cost_network, costs, self.actor, states, actions, next_states, dones) -
             self.func_A(self.cost_network, self.actor, states, actions)
         )
-        loss_cost.sum().backward()
-        nn.utils.clip_grad_norm_(self.cost_network.parameters(), max_norm=1.0)
+        loss_cost.mean().backward()
         self.cost_optimizer.step()
 
         # actor
         self.actor_optimizer.zero_grad()
         loss_actor = -self.func_A(self.combined_reward, self.actor, states, actions)
-        loss_actor.sum().backward()
-        nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
+        loss_actor.mean().backward()
         self.actor_optimizer.step()
 
         stats_loss = {
@@ -142,10 +137,11 @@ class PDCA(nn.Module):
         init_states, = init_batch
         with torch.no_grad():
             init_actions, *_ = self.actor(init_states)
-            w = torch.mean(self.cost_threshold - self.cost_network(init_states, init_actions)[0], axis=0)
-            self.lambdas = self.B if w < 0 else 0
+            w = torch.mean(self.cost_network(init_states, init_actions))
+            self.lambdas = self.B if self.cost_threshold < w else 0
         return {
             "params/lambda": self.lambdas,
+            "params/cost_estimate": w.item(),
         }
 
     def setup_optimizers(self, actor_lr, critic_lr):
