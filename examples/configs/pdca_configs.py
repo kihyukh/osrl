@@ -31,6 +31,7 @@ class PDCATrainConfig:
     actor_lr: float = 0.0001
     critic_lr: float = 0.0001
     B: float = 5
+    C: float = 5
     cost_threshold: float = 10
     episode_len: int = 300
     batch_size: int = 512

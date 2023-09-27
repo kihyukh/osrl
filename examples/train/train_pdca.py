@@ -116,6 +116,7 @@ def train(args: PDCATrainConfig):
         c_hidden_sizes=args.c_hidden_sizes,
         gamma=args.gamma,
         B=args.B,
+        C=args.C,
         cost_threshold=args.cost_threshold,
         device=args.device,
     )

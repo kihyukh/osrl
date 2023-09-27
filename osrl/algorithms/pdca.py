@@ -44,6 +44,7 @@ class PDCA(nn.Module):
                  c_hidden_sizes: list = [128, 128],
                  gamma: float = 0.99,
                  B: float = 5,
+                 C: float = 5,
                  cost_threshold: float = 10,
                  episode_len: int = 300,
                  device: str = "cpu"):
@@ -55,6 +56,7 @@ class PDCA(nn.Module):
         self.c_hidden_sizes = c_hidden_sizes
         self.gamma = gamma
         self.B = B
+        self.C = C
         self.cost_threshold = cost_threshold
         self.episode_len = episode_len
         self.device = device
@@ -85,7 +87,7 @@ class PDCA(nn.Module):
 
     def func_E(self, f, R, policy, states, actions, next_states, dones):
         next_actions, *_ = policy.forward(next_states)
-        X = f(states, actions)[0] - R - self.gamma * f(next_states, next_actions)[0]
+        X = f(states, actions)[0] - R - self.gamma * f(next_states, next_actions)[0] * (1 - dones)
         sum_positive = torch.mean(torch.clamp(X, min=0))
         sum_negative = torch.mean(torch.clamp(X, max=0))
         return torch.max(sum_positive, -sum_negative)
@@ -105,7 +107,7 @@ class PDCA(nn.Module):
         # reward critic
         self.reward_optimizer.zero_grad()
         loss_reward = (
-            2 * self.func_E(self.reward_network, rewards, self.actor, states, actions, next_states, dones) +
+            2 * self.C * self.func_E(self.reward_network, rewards, self.actor, states, actions, next_states, dones) +
             self.func_A(self.reward_network, self.actor, states, actions)
         )
         loss_reward.sum().backward()
@@ -113,8 +115,9 @@ class PDCA(nn.Module):
         self.reward_optimizer.step()
 
         # cost critic
+        self.cost_optimizer.zero_grad()
         loss_cost = (
-            2 * self.func_E(self.cost_network, costs, self.actor, states, actions, next_states, dones) -
+            2 * self.C * self.func_E(self.cost_network, costs, self.actor, states, actions, next_states, dones) -
             self.func_A(self.cost_network, self.actor, states, actions)
         )
         loss_cost.sum().backward()
