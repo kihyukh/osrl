@@ -812,10 +812,11 @@ class TransitionDataset(IterableDataset):
         self.state_init = state_init
         self.dataset_size = self.dataset["observations"].shape[0]
 
-        self.dataset["done"] = np.logical_or(self.dataset["terminals"],
-                                             self.dataset["timeouts"]).astype(np.float32)
+        self.dataset["done"] = self.dataset["terminals"].copy().astype(np.float32)
         if self.state_init:
-            self.dataset["is_init"] = self.dataset["done"].copy()
+            self.dataset["is_init"] = np.logical_or(
+                self.dataset["terminals"],
+                self.dataset["timeouts"]).astype(np.float32)
             self.dataset["is_init"][1:] = self.dataset["is_init"][:-1]
             self.dataset["is_init"][0] = 1.0
 
@@ -856,12 +857,9 @@ class InitialStateDataset(IterableDataset):
     """
 
     def __init__(self, dataset: dict):
-        done = np.logical_or(
-                dataset["terminals"],
-                dataset["timeouts"]).astype(np.float32)
         self.sample_prob = None
-        self.dataset_size = int(done.sum().item())
-        self.dataset = dataset["observations"][dataset["done"] == 1, :]
+        self.dataset_size = int(dataset["is_init"].sum().item())
+        self.dataset = dataset["observations"][dataset["is_init"] == 1, :]
 
     def __prepare_sample(self, idx):
         return self.dataset[idx, :],
