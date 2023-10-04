@@ -29,10 +29,11 @@ class PDCATrainConfig:
     reward_scale: float = 0.1
     cost_scale: float = 1
     actor_lr: float = 0.0001
-    critic_lr: float = 0.0001
+    critic_lr: float = 0.001
     B: float = 5
     C: float = 5
     cost_threshold: float = 10
+    cost_margin: float = 0
     episode_len: int = 300
     batch_size: int = 512
     update_steps: int = 100_000
@@ -40,12 +41,7 @@ class PDCATrainConfig:
     # model params
     a_hidden_sizes: List[float] = field(default=[256, 256], is_mutable=True)
     c_hidden_sizes: List[float] = field(default=[256, 256], is_mutable=True)
-    alpha: float = 0.5
     gamma: float = 0.99
-    cost_ub_epsilon: float = 0.01
-    f_type: str = "softchi"
-    num_nu: int = 2
-    num_chi: int = 2
     # evaluation params
     eval_episodes: int = 10
     eval_every: int = 2500

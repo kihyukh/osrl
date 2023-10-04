@@ -117,7 +117,7 @@ def train(args: PDCATrainConfig):
         gamma=args.gamma,
         B=args.B,
         C=args.C,
-        cost_threshold=args.cost_threshold,
+        cost_threshold=args.cost_threshold - args.cost_margin,
         device=args.device,
     )
 
@@ -155,6 +155,7 @@ def train(args: PDCATrainConfig):
 
             # save the current weight
             logger.save_checkpoint()
+            logger.save_checkpoint(suffix=f'{step + 1:07}')
             # save the best weight
             if cost < best_cost or (cost == best_cost and ret > best_reward):
                 best_cost = cost

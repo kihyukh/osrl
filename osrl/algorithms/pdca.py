@@ -80,6 +80,13 @@ class PDCA(nn.Module):
                 self.c_hidden_sizes,
                 nn.ReLU).to(self.device)
 
+        # ope
+        self.ope_network = MLPQCritic(
+                self.state_dim,
+                self.action_dim,
+                self.c_hidden_sizes,
+                nn.ReLU).to(self.device)
+
         # lambda
         self.lambdas = 0
 
@@ -94,12 +101,18 @@ class PDCA(nn.Module):
         policy_actions, *_ = policy.forward(states)
         return f(states, policy_actions) - f(states, actions)
 
+    def func_td(self, f, R, policy, states, actions, next_states, dones):
+        next_actions, *_ = policy.forward(next_states)
+        X = f(states, actions) - R - self.gamma * f(next_states, next_actions) * (1 - dones)
+        squares = torch.square(X)
+        return squares.mean()
+
     def combined_reward(self, states, actions):
         return self.reward_network(states, actions) + (
             self.cost_threshold - self.cost_network(states, actions)
         ) * self.lambdas
 
-    def update(self, batch):
+    def update(self, batch, init_batch):
         states, next_states, actions, rewards, costs, dones, is_init = batch
 
         # reward critic
@@ -120,6 +133,12 @@ class PDCA(nn.Module):
         loss_cost.mean().backward()
         self.cost_optimizer.step()
 
+        # ope
+        self.ope_optimizer.zero_grad()
+        loss_ope = self.func_E(self.ope_network, costs, self.actor, states, actions, next_states, dones)
+        loss_ope.backward()
+        self.ope_optimizer.step()
+
         # actor
         self.actor_optimizer.zero_grad()
         loss_actor = -self.func_A(self.combined_reward, self.actor, states, actions)
@@ -128,6 +147,7 @@ class PDCA(nn.Module):
 
         stats_loss = {
             "loss/cost_critic_loss": loss_cost.mean().item(),
+            "loss/ope_loss": loss_ope.mean().item(),
             "loss/reward_critic_loss": loss_reward.mean().item(),
             "loss/actor_loss": loss_actor.mean().item(),
         }
@@ -137,11 +157,11 @@ class PDCA(nn.Module):
         init_states, = init_batch
         with torch.no_grad():
             init_actions, *_ = self.actor(init_states)
-            w = torch.mean(self.cost_network(init_states, init_actions))
+            w = torch.mean(self.ope_network(init_states, init_actions))
             self.lambdas = self.B if self.cost_threshold < w else 0
         return {
             "params/lambda": self.lambdas,
-            "params/cost_estimate": w.item(),
+            "params/ope_estimate": w.item(),
         }
 
     def setup_optimizers(self, actor_lr, critic_lr):
@@ -152,6 +172,10 @@ class PDCA(nn.Module):
         )
         self.cost_optimizer = torch.optim.Adam(
             self.cost_network.parameters(),
+            lr=critic_lr
+        )
+        self.ope_optimizer = torch.optim.Adam(
+            self.ope_network.parameters(),
             lr=critic_lr
         )
 
@@ -201,7 +225,7 @@ class PDCATrainer:
         self.model.setup_optimizers(actor_lr, critic_lr)
 
     def train_one_step(self, batch, init_batch):
-        stats_loss = self.model.update(batch)
+        stats_loss = self.model.update(batch, init_batch)
         stats_lambdas = self.model.update_lambdas(init_batch)
         self.logger.store(**stats_loss, **stats_lambdas)
 
