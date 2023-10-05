@@ -74,6 +74,39 @@ def load_config_and_model(path: str, best: bool = False):
         raise ValueError(f"{path} doesn't exist!")
 
 
+def load_config_and_all_models(path: str):
+    '''
+    Load the configuration and trained model from a specified directory.
+
+    :param path: the directory path where the configuration and trained model are stored.
+    :param best: whether to load the best-performing model or the most recent one. Defaults to False.
+
+    :return: a tuple containing the configuration dictionary and the list of trained models.
+    :raises ValueError: if the specified directory does not exist.
+    '''
+    if osp.exists(path):
+        config_file = osp.join(path, "config.yaml")
+        with open(config_file) as f:
+            config = yaml.load(f.read(), Loader=yaml.FullLoader)
+        checkpoint_path = osp.join(path, "checkpoint")
+        model_files = sorted([
+            f for f in os.listdir(checkpoint_path)
+            if (
+                osp.isfile(osp.join(checkpoint_path, f)) and
+                f.endswith(".pt") and
+                f.split('_')[-1][:-3].isnumeric()
+            )
+        ])
+        print(os.listdir(checkpoint_path))
+        models = [
+            torch.load(osp.join(checkpoint_path, model_file))
+            for model_file in model_files
+        ]
+        return config, models
+    else:
+        raise ValueError(f"{path} doesn't exist!")
+
+
 def to_string(values):
     '''
     Recursively convert a sequence or dictionary of values to a string representation.

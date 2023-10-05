@@ -9,7 +9,7 @@ from dsrl.offline_env import OfflineEnvWrapper, wrap_env  # noqa
 from pyrallis import field
 
 from osrl.algorithms import PDCA, PDCATrainer
-from osrl.common.exp_util import load_config_and_model, seed_all
+from osrl.common.exp_util import load_config_and_all_models, seed_all
 
 
 @dataclass
@@ -25,7 +25,7 @@ class EvalConfig:
 @pyrallis.wrap()
 def eval(args: EvalConfig):
 
-    cfg, model = load_config_and_model(args.path, args.best)
+    cfg, models = load_config_and_all_models(args.path)
     seed_all(cfg["seed"])
     if args.device == "cpu":
         torch.set_num_threads(args.threads)
@@ -42,33 +42,42 @@ def eval(args: EvalConfig):
     env = OfflineEnvWrapper(env)
     env.set_target_cost(cfg["cost_threshold"])
 
-    # setup model
-    pdca_model = PDCA(
-        state_dim=env.observation_space.shape[0],
-        action_dim=env.action_space.shape[0],
-        max_action=env.action_space.high[0],
-        a_hidden_sizes=cfg["a_hidden_sizes"],
-        c_hidden_sizes=cfg["c_hidden_sizes"],
-        gamma=cfg["gamma"],
-        B=cfg["B"],
-        cost_threshold=cfg["cost_threshold"],
-        episode_len=cfg["episode_len"],
-        device=args.device,
-    )
-    pdca_model.load_state_dict(model["model_state"])
-    pdca_model.to(args.device)
-    trainer = PDCATrainer(pdca_model,
-            env,
-            reward_scale=cfg["reward_scale"],
-            cost_scale=cfg["cost_scale"],
-            device=args.device)
+    rewards = np.zeros(len(models))
+    costs = np.zeros(len(models))
+    for i, model in enumerate(models):
+        # setup model
+        pdca_model = PDCA(
+            state_dim=env.observation_space.shape[0],
+            action_dim=env.action_space.shape[0],
+            max_action=env.action_space.high[0],
+            a_hidden_sizes=cfg["a_hidden_sizes"],
+            c_hidden_sizes=cfg["c_hidden_sizes"],
+            gamma=cfg["gamma"],
+            B=cfg["B"],
+            cost_threshold=cfg["cost_threshold"],
+            episode_len=cfg["episode_len"],
+            device=args.device,
+        )
+        pdca_model.load_state_dict(model["model_state"])
+        pdca_model.to(args.device)
+        trainer = PDCATrainer(pdca_model,
+                env,
+                reward_scale=cfg["reward_scale"],
+                cost_scale=cfg["cost_scale"],
+                device=args.device)
 
-    ret, cost, length = trainer.evaluate(args.eval_episodes)
-    normalized_ret, normalized_cost = env.get_normalized_score(ret, cost)
+        ret, cost, length = trainer.evaluate(args.eval_episodes)
+        normalized_ret, normalized_cost = env.get_normalized_score(ret, cost)
+        rewards[i] = normalized_ret
+        costs[i] = normalized_cost
+
     print(
         f"Eval reward: {ret}, normalized reward: {normalized_ret}; cost: {cost}, normalized cost: {normalized_cost}; length: {length}"
     )
 
+    print(
+        f"Average normalized reward: {rewards.mean()}; Average normalized cost: {costs.mean()}"
+    )
 
 if __name__ == "__main__":
     eval()
