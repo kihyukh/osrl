@@ -97,7 +97,6 @@ def load_config_and_all_models(path: str):
                 f.split('_')[-1][:-3].isnumeric()
             )
         ])
-        print(os.listdir(checkpoint_path))
         models = [
             torch.load(osp.join(checkpoint_path, model_file))
             for model_file in model_files

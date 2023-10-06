@@ -3,6 +3,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 import dsrl
 import numpy as np
+import os
 import pyrallis
 import torch
 from dsrl.offline_env import OfflineEnvWrapper, wrap_env  # noqa
@@ -15,17 +16,45 @@ from osrl.common.exp_util import load_config_and_all_models, seed_all
 @dataclass
 class EvalConfig:
     path: str = "log/.../checkpoint/model.pt"
+    root: str = "logs"
     noise_scale: List[float] = None
     eval_episodes: int = 20
     best: bool = False
     device: str = "cpu"
     threads: int = 4
 
+@pyrallis.wrap()
+def get_valid_experiment_list(args: EvalConfig):
+    def get_model_count(path):
+        checkpoint_path = os.path.join(path, "checkpoint")
+        if not os.path.exists(checkpoint_path):
+            return 0
+        model_files = sorted([
+            f for f in os.listdir(checkpoint_path)
+            if (
+                os.path.isfile(os.path.join(checkpoint_path, f)) and
+                f.endswith(".pt") and
+                f.split('_')[-1][:-3].isnumeric()
+            )
+        ])
+        return len(model_files)
+
+    experiments = []
+    for dirpath, dirnames, filenames in os.walk(args.root):
+        level = len(dirpath.split('/'))
+        if level != 3:
+            continue
+        experiments.extend([f'{dirpath}/{dirname}' for dirname in dirnames])
+
+    exp_counts = [(exp, get_model_count(exp)) for exp in experiments]
+    return [(exp, count) for exp, count in exp_counts if count > 0]
+
 
 @pyrallis.wrap()
 def eval(args: EvalConfig):
 
     cfg, models = load_config_and_all_models(args.path)
+    print(len(models))
     seed_all(cfg["seed"])
     if args.device == "cpu":
         torch.set_num_threads(args.threads)
@@ -71,14 +100,9 @@ def eval(args: EvalConfig):
         rewards[i] = normalized_ret
         costs[i] = normalized_cost
 
-    print(
-        f"Eval reward: {ret}, normalized reward: {normalized_ret}; cost: {cost}, normalized cost: {normalized_cost}; length: {length}"
-    )
-
-    print(
-        f"Average normalized reward: {rewards.mean()}; Average normalized cost: {costs.mean()}"
-    )
+    return rewards.mean(), costs.mean(), len(models)
 
 if __name__ == "__main__":
-    eval()
+    #r, c, l = eval()
+    print(get_valid_experiment_list())
 
