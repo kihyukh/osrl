@@ -20,11 +20,13 @@ class EvalConfig:
     noise_scale: List[float] = None
     eval_episodes: int = 20
     best: bool = False
+    num_models: int = 40
+    eval_result_filename: str = "eval.txt"
     device: str = "cpu"
     threads: int = 4
 
 @pyrallis.wrap()
-def get_valid_experiment_list(args: EvalConfig):
+def get_experiment_list(args: EvalConfig):
     def get_model_count(path):
         checkpoint_path = os.path.join(path, "checkpoint")
         if not os.path.exists(checkpoint_path):
@@ -48,6 +50,17 @@ def get_valid_experiment_list(args: EvalConfig):
 
     exp_counts = [(exp, get_model_count(exp)) for exp in experiments]
     return [(exp, count) for exp, count in exp_counts if count > 0]
+
+@pyrallis.wrap()
+def print_experiments_to_eval(args: EvalConfig):
+    def has_eval(path):
+        result_path = os.path.join(path, args.eval_result_filename)
+        return os.path.exists(result_path)
+
+    print(' '.join ([exp
+        for exp, count in get_experiment_list()
+        if count == args.num_models and not has_eval(exp)
+    ]))
 
 
 @pyrallis.wrap()
@@ -104,5 +117,5 @@ def eval(args: EvalConfig):
 
 if __name__ == "__main__":
     #r, c, l = eval()
-    print(get_valid_experiment_list())
+    print_experiments_to_eval()
 
