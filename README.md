@@ -50,6 +50,7 @@ The implemented offline safe RL and imitation learning algorithms include:
 | BC-All                 | Imitation Learning | [Behavior Cloning](https://arxiv.org/abs/2302.07351) with all datasets |
 | BC-Safe                 | Imitation Learning | [Behavior Cloning](https://arxiv.org/abs/2302.07351) with safe trajectories |
 | BC-Frontier                 | Imitation Learning | [Behavior Cloning](https://arxiv.org/abs/2302.07351) with high-reward trajectories |
+| PDCA                | Actor Critic | Ours |
 
 
 ## Installation
@@ -79,19 +80,19 @@ All the parameters and their default configs for each algorithm are available in
 OSRL uses the `WandbLogger` in [FSRL](https://github.com/liuzuxin/FSRL) and [Pyrallis](https://github.com/eladrich/pyrallis) configuration system. The offline dataset and offline environments are provided in [DSRL](https://github.com/liuzuxin/DSRL), so make sure you install both of them first.
 
 ### Training
-For example, to train the `bcql` method, simply run by overriding the default parameters:
+For example, to train the `pdca` method, simply run by overriding the default parameters:
 
 ```shell
-python examples/train/train_bcql.py --task OfflineCarCircle-v0 --param1 args1 ...
+python examples/train/train_pdca.py --task OfflineCarCircle-v0 --param1 args1 ...
 ```
 By default, the config file and the logs during training will be written to `logs\` folder and the training plots can be viewed online using Wandb.
 
 You can also launch a sequence of experiments or in parallel via the [EasyRunner](https://github.com/liuzuxin/easy-runner) package, see `examples/train_all_tasks.py` for details.
 
 ### Evaluation
-To evaluate a trained agent, for example, a BCQ agent, simply run
+To evaluate a trained agent, for example, a pdca agent, simply run
 ```shell
-python examples/eval/eval_bcql.py --path path_to_model --eval_episodes 20
+python examples/eval/eval_pdca.py --path path_to_model --eval_episodes 20
 ```
 It will load config file from `path_to_model/config.yaml` and model file from `path_to_model/checkpoints/model.pt`, run 20 episodes, and print the average normalized reward and cost. The pretrained checkpoints for all datasets are available [here](https://drive.google.com/drive/folders/1lZmw2NVNR4YGUdrkih9o3rTMDrWCI_jw?usp=sharing) for reference.
 
