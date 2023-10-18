@@ -1,16 +1,9 @@
 ## Installation
 
-Code is a fork of OSRL. To install OSRL:
+Code is a fork of OSRL and you need to install osrl first:
 
 ```bash
 pip install osrl-lib
-```
-
-You can also pull the repo and install:
-```bash
-git clone https://github.com/liuzuxin/OSRL.git
-cd osrl
-pip install -e .
 ```
 
 ### Training
